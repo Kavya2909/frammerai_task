@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUD Form</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            font-size: 16px;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            border-color: #0056b3;
+            outline: none;
+        }
+
+        .form-group button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .form-group button:hover {
+            background-color: #0056b3;
+        }
+
+        .form-group button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .message {
+            color: green;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .error {
+            color: red;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .table-container {
+            margin-top: 40px;
+            width: 100%;
+            max-width: 1000px;
+            overflow-x: auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .search {
+            margin-bottom: 10px;
+            padding: 8px;
+            font-size: 16px;
+            width: 100%;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>CRUD Form</h2>
+
+        <!-- Form Section -->
+        <form id="crud-form">
+            <div class="form-group">
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone:</label>
+                <input type="text" id="phone" name="phone" required>
+            </div>
+
+            <div class="form-group">
+                <button type="submit" id="submit-button">Submit</button>
+            </div>
+        </form>
+
+        <div class="message" id="message"></div>
+        <div class="error" id="error-message"></div>
+    </div>
+
+    <!-- Table Section for Searching & Editing -->
+    <div class="table-container">
+        <input class="search" type="text" id="search-input" placeholder="Search by Name or Email...">
+        <table id="users-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        let isUpdating = false;  // Track if we are in 'update' mode
+        let currentUserId = null; // Track the user being edited
+
+        const form = document.getElementById('crud-form');
+        const nameInput = document.getElementById('name');
+        const emailInput = document.getElementById('email');
+        const phoneInput = document.getElementById('phone');
+        const submitButton = document.getElementById('submit-button');
+        const usersTable = document.getElementById('users-table').getElementsByTagName('tbody')[0];
+        const searchInput = document.getElementById('search-input');
+        const message = document.getElementById('message');
+        const errorMessage = document.getElementById('error-message');
+
+        // Fetch users from the API and display in table
+        function fetchUsers() {
+            fetch('http://127.0.0.1:8000/api/users')
+                .then(response => response.json())
+                .then(data => {
+                    const rows = data.map(user => `
+                        <tr>
+                            <td>${user.id}</td>
+                            <td>${user.name}</td>
+                            <td>${user.email}</td>
+                            <td>${user.phone}</td>
+                            <td>
+                                <button onclick="editUser(${user.id}, '${user.name}', '${user.email}', '${user.phone}')">Edit</button>
+                                <button onclick="deleteUser(${user.id})">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    usersTable.innerHTML = rows;
+                })
+                .catch(error => {
+                    errorMessage.textContent = 'Failed to fetch users.';
+                });
+        }
+
+        // Form submission handler for Add or Update
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const name = nameInput.value.trim();
+            const email = emailInput.value.trim();
+            const phone = phoneInput.value.trim();
+
+            if (isUpdating) {
+                // Update user
+                fetch(`http://127.0.0.1:8000/api/users/${currentUserId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, email, phone }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    message.textContent = 'User updated successfully';
+                    resetForm();
+                    fetchUsers(); // Refresh the user list
+                })
+                .catch(error => {
+                    errorMessage.textContent = 'Failed to update user.';
+                });
+            } else {
+                // Add new user
+                fetch('http://127.0.0.1:8000/api/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, email, phone }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    message.textContent = 'User added successfully';
+                    resetForm();
+                    fetchUsers(); // Refresh the user list
+                })
+                .catch(error => {
+                    errorMessage.textContent = 'Failed to add user.';
+                });
+            }
+        });
+
+        // Populate form for editing a user
+        function editUser(id, name, email, phone) {
+            nameInput.value = name;
+            emailInput.value = email;
+            phoneInput.value = phone;
+
+            isUpdating = true;
+            currentUserId = id;
+            submitButton.textContent = 'Update';  // Change button text to "Update"
+        }
+
+        // Delete user
+        function deleteUser(userId) {
+            fetch(`http://127.0.0.1:8000/api/users/${userId}`, {
+                method: 'DELETE',
+            })
+            .then(response => response.json())
+            .then(data => {
+                message.textContent = 'User deleted successfully';
+                fetchUsers(); // Refresh the user list
+            })
+            .catch(error => {
+                errorMessage.textContent = 'Failed to delete user.';
+            });
+        }
+
+        // Reset the form after add/update operation
+        function resetForm() {
+            form.reset();
+            isUpdating = false;
+            currentUserId = null;
+            submitButton.textContent = 'Submit';  // Reset button text to "Submit"
+        }
+
+        // Filter users based on search input
+        searchInput.addEventListener('input', function() {
+            const searchQuery = searchInput.value.toLowerCase();
+            const rows = usersTable.getElementsByTagName('tr');
+            Array.from(rows).forEach(row => {
+                const cells = row.getElementsByTagName('td');
+                const name = cells[1].textContent.toLowerCase();
+                const email = cells[2].textContent.toLowerCase();
+                if (name.includes(searchQuery) || email.includes(searchQuery)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+
+        fetchUsers(); // Initial call to fetch users and display in the table
+    </script>
+</body>
+</html>
